@@ -14,24 +14,45 @@ import { PlacesContainerComponent } from '../places-container/places-container.c
 })
 export class AvailablePlacesComponent implements OnInit {
   places = signal<Place[] | undefined>(undefined);
+  isFetching = signal(false);
+  error = signal('');
   private httpClient = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
 
   ngOnInit() {
+    this.isFetching.set(true);
     // De Observable (this.httpClient.get) voert een http get-verzoek uit.
+    // Definieer het type data: <{places: Place[]}>
+    // Subscribe om de request te triggeren. 
+    // Na antwoord server wordt de next callback aangeroepen met de responseData.
     const subscription = this.httpClient
       .get<{places: Place[]}>('http://localhost:3000/places')
-      // Subscribe om de request te triggeren. 
       .subscribe({ 
-        // Wanneer de server een antwoord terugstuurt, wordt de next callback aangeroepen met de ontvangen data (responseData).
         next: (responseData) => {
-          console.log(responseData);
+          console.log(responseData.places);
+          this.places.set(responseData.places);
+        },
+        error: (error) => { // Zie app.js
+          console.log(error);
+          this.error.set('Something went wrong fetching the places. Please try again later.');
+        },
+        complete: () => {
+          this.isFetching.set(false);
         }
       });
 
-    // Clean up http subscription.
+    // Opruimen http-subscription.
     this.destroyRef.onDestroy(() => {
       subscription.unsubscribe();
+    });
+  }
+
+  // Subscribe om de request te triggeren. 
+  onSelectPlace(selectedPlace: Place) {
+    this.httpClient.put('http://localhost:3000/user-places', {
+      placeId: selectedPlace.id
+    }).subscribe({
+      next: (responseData) => console.log(responseData)
     });
   }
 }
