@@ -1,9 +1,11 @@
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+// import { HttpClient } from '@angular/common/http';
+// import { catchError, map, throwError } from 'rxjs';
 
 import { Place } from '../place.model';
 import { PlacesComponent } from '../places.component';
 import { PlacesContainerComponent } from '../places-container/places-container.component';
+import { PlacesService } from '../places.service';
 
 @Component({
   selector: 'app-available-places',
@@ -16,43 +18,81 @@ export class AvailablePlacesComponent implements OnInit {
   places = signal<Place[] | undefined>(undefined);
   isFetching = signal(false);
   error = signal('');
-  private httpClient = inject(HttpClient);
+  // private httpClient = inject(HttpClient);
+  private placesService = inject(PlacesService)
   private destroyRef = inject(DestroyRef);
+
+  // ngOnInit() {
+  //   this.isFetching.set(true);
+  //   // De Observable (this.httpClient.get) voert een http get-verzoek uit.
+  //   // Definieer het type data: <{places: Place[]}>
+  //   // Subscribe om de request te triggeren. 
+  //   // Na antwoord server wordt de next callback aangeroepen met de responseData.
+  //   const subscription = this.httpClient
+  //     .get<{places: Place[]}>('http://localhost:3000/places')
+  //     .pipe(
+  //       map((responseData) => responseData.places),
+  //       catchError((error) => {
+  //         console.log(error);
+  //         // throwError genereert een nieuwe observable
+  //         return throwError(() => new Error('Something went wrong fetching the available places. Please try again later.'));
+  //       })
+  //     )
+  //     .subscribe({ 
+  //       next: (places) => {
+  //         this.places.set(places);
+  //       },
+  //       error: (error: Error) => { // Zie app.js
+  //         this.error.set(error.message);
+  //       },
+  //       complete: () => {
+  //         this.isFetching.set(false);
+  //       }
+  //     });
+
+  //   // Opruimen http-subscription.
+  //   this.destroyRef.onDestroy(() => {
+  //     subscription.unsubscribe();
+  //   });
+  // }
 
   ngOnInit() {
     this.isFetching.set(true);
-    // De Observable (this.httpClient.get) voert een http get-verzoek uit.
-    // Definieer het type data: <{places: Place[]}>
-    // Subscribe om de request te triggeren. 
-    // Na antwoord server wordt de next callback aangeroepen met de responseData.
-    const subscription = this.httpClient
-      .get<{places: Place[]}>('http://localhost:3000/places')
+    const subscription = this.placesService.loadAvailablePlaces()
       .subscribe({ 
-        next: (responseData) => {
-          console.log(responseData.places);
-          this.places.set(responseData.places);
+        next: (places) => {
+          this.places.set(places);
         },
-        error: (error) => { // Zie app.js
-          console.log(error);
-          this.error.set('Something went wrong fetching the places. Please try again later.');
+        error: (error: Error) => {
+          this.error.set(error.message);
         },
         complete: () => {
           this.isFetching.set(false);
         }
       });
 
-    // Opruimen http-subscription.
     this.destroyRef.onDestroy(() => {
       subscription.unsubscribe();
     });
   }
 
-  // Subscribe om de request te triggeren. 
+  // // Luister naar de selectPlace event uit app-places. 
+  // // Subscribe om de (put)request te triggeren. 
+  // onSelectPlace(selectedPlace: Place) {
+  //   this.httpClient.put('http://localhost:3000/user-places', {
+  //     placeId: selectedPlace.id
+  //   }).subscribe({
+  //     next: (responseData) => console.log(responseData)
+  //   });
+  // }
+
   onSelectPlace(selectedPlace: Place) {
-    this.httpClient.put('http://localhost:3000/user-places', {
-      placeId: selectedPlace.id
-    }).subscribe({
+    const subscription = this.placesService.addPlaceToUserPlaces(selectedPlace).subscribe({
       next: (responseData) => console.log(responseData)
+    });
+
+    this.destroyRef.onDestroy(() => {
+      subscription.unsubscribe();
     });
   }
 }
